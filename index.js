@@ -77,7 +77,7 @@ const MIN_SIZE_BY_EXT = new Map([
 	[".jpg",		107],
 	[".jpeg",		107],
 	[".mp4",		1493],
-	[".png",		51],
+	[".png",		67],
 	[".webp",		26],
 	[".webm",		185]
 ]);
