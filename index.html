@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf8">
+	<title>Zip recovery tool</title>
+	<link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+<div id="mainwrap">
+
+	<h1 id="maintitle">Zip recovery tool</h1>
+
+	<p>This tool attempts to extract a corrupt zip by reading it in a different way. It searches for individual file entries rather than using the usual central directory at the end of the file. It may or may not work &mdash; use at your own risk.</p>
+
+	<noscript><strong>This page requires JavaScript to work, but it looks like JavaScript is disabled. Please enable JavaScript and try again.</strong></noscript>
+
+	<input type="file" id="filepicker"> <button id="pickfolder" disabled>Pick output folder</button> <button id="start" disabled>Start recovery</button>
+
+	<p><strong>WARNING:</strong> files in the output folder may be overwritten.</p>
+
+	<h2>Log messages</h2>
+	<ul id="logList">
+		
+	</ul>
+
+	<details>
+		<summary>More information</summary>
+		<h3>What is this?</h3>
+		<p>This page lets you attempt to recover a corrupt zip file. Normally the <a href="https://en.wikipedia.org/wiki/ZIP_(file_format)">ZIP file format</a> is read according to the central directory, placed at the end of the file. If that is missing or unreadable for any reason (such as file truncation), there may still be intact file entries in the file. This tool searches for file entries and extracts them, possibly allowing recovery of at least some of the zip file contents. However this may or may not work depending on the particular nature of the zip file, and the extent to which it has been corrupted.</p>
+
+		<h3>How do I use it?</h3>
+		<p>Click the file picker to choose a zip file to extract. Then click <em>Pick output folder</em> to choose a folder to extract files to. <strong>WARNING:</strong> files in that folder may be overwritten. Then click <em>Start recovery</em> to begin attempting to recover the files. Any identified valid files will be extracted to the chosen output folder. If the zip file is particularly large, you may have to be patient &mdash; wait for the finished message to appear to ensure all identified files have been extracted.</p>
+
+		<p><strong>Note:</strong> currently this tool is only fully supported in Chromium-based browsers (Chrome, Edge etc).</p>
+
+		<h3>Is my data kept private?</h3>
+		<p>Yes. Everything is processed on your local system. None of your files are uploaded or transmitted elsewhere in any way.</p>
+
+		<h3>Who made this?</h3>
+		<p>Hi, I'm Ashley, founder of Scirra and lead developer on <a href="https://www.construct.net/">Construct</a>. Find me on <a href="https://bsky.app/profile/ashleygullen.bsky.social">Bluesky</a> and <a href="https://mastodon.gamedev.place/@ashleygullen">Mastodon</a>.</p>
+
+		<p><em>v1.0 &mdash; last updated July 7th 2025</em></p>
+	</details>
+
+</div>
+<script src="index.js" type="module"></script>
+
+</body>
+</html>

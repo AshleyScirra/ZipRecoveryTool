@@ -1,0 +1,42 @@
+
+body {
+	font-family: sans-serif;
+	background-color: #f0f0f0;
+}
+
+details {
+	margin-top: 2em;
+	text-align: left;
+}
+
+summary {
+	cursor: pointer;
+	user-select: none;
+	text-align: center;
+}
+
+h3 {
+	margin-top: 1.5em;
+	margin-bottom: 0.33em;
+}
+
+h3 + p {
+	margin-top: 0em;
+}
+
+#mainwrap {
+	max-width: 40em;
+	margin: 1em auto 4em auto;
+	padding: 1em;
+	text-align: center;
+	background-color: white;
+	box-shadow: 0px 0px 1em #888;
+}
+
+#maintitle {
+	margin-top: 0;
+}
+
+#logList, #logList li {
+	text-align: left;
+}
