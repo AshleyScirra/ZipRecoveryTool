@@ -3,6 +3,7 @@ import { PromiseThrottle } from "./promiseThrottle.js";
 
 const MIN_FILE_HEADER_SIZE = 30;
 const FILE_HEADER_SIGNATURE = 0x504B0304;		// note in big endian here
+const DATA_DESCRIPTOR_SIGNATURE = 0x504B0708;	// note in big endian here
 
 // For decoding filenames, assuming UTF-8 encoding and with fatal mode enabled
 // so errors throw an exception causing the file entry to be skipped.
@@ -230,36 +231,64 @@ function TryRecoverFileEntry(dataView, i, promises)
 
 	// If the file appears to have a zero size, check if flags bit 3 is set. If so that means the data descriptor must
 	// follow the compressed data. The problem is we don't know how long the compressed data is though. However we can
-	// scan through the compressed data looking for what appears to be a correct entry for the compressed size given the
-	// position in the data. This could hit a false positive by accident, but the chance of this seems slim, so it seems
-	// like a good approach to identify the end of the compressed data.
+	// scan through the compressed data looking for either the data descriptor signature, or something that appears to
+	// be a correct entry for the compressed size given the position in the data. This could hit a false positive, but
+	// the chance of this seems slim, so it seems like a good approach to identify the end of the compressed data if
+	// there is nothing else to go on.
 	const compressedDataStart = i + 30 + fileNameLength + extraFieldLength;
 
 	if (uncompressedSize === 0)
 	{
 		if ((bitFlags & 0x08) !== 0)		// need to look for data descriptor
 		{
-			// Scan through compressed data looking for a matching compressed size in a data descriptor.
-			// Note the compressed size is at a 4 byte offset in the data descriptor
-			for (let d = compressedDataStart + 4; d < totalSize - 4; ++d)
+			// Scan through compressed data looking for a data descriptor.
+			// NOTE: in the Zip64 format the data descriptor uses 8 bytes for the sizes. This is not currently supported.
+			// It looks like some zip libraries still use 4 byte sizes for files under 4 GB even when Zip64 support
+			// is enabled, so only checking for the 4 byte sizes should work most of the time anyway.
+			for (let d = compressedDataStart; d < totalSize - 4; ++d)
 			{
-				// NOTE: in the Zip64 format the data descriptor uses 8 bytes for the sizes. This is not currently supported.
-				// It looks like some zip libraries still use 4 byte sizes for files under 4 GB even when Zip64 support
-				// is enabled, so only checking for the 4 byte sizes should work most of the time anyway.
-				const actualCompressedDataSizeHere = d - compressedDataStart - 4;
-				const readCompressedDataSize = dataView.getUint32(d, true);
-
-				// Found the correct compressed data size here.
-				if (actualCompressedDataSizeHere === readCompressedDataSize)
+				// See if the data descriptor signature is here. This is optional and so may never appear.
+				const signature = dataView.getUint32(d, false);		// note read as big endian
+				if (signature === DATA_DESCRIPTOR_SIGNATURE)
 				{
-					// Set the compressed size, and also read the uncompressed size only for diagnostic purposes.
-					compressedSize = actualCompressedDataSizeHere;
-					uncompressedSize = dataView.getUint32(d + 8, true);
-				
-					promises.push(ExtractCompressedData(dataView, compressedDataStart, compressedSize, uncompressedSize, compression, filename));
+					// Found signature: read off the compressed and uncompressed size 8 bytes ahead (for the signature
+					// and CRC-32 fields).
+					compressedSize = dataView.getUint32(d + 8, true);
+					uncompressedSize = dataView.getUint32(d + 12, true);
 
-					// Continue search for further file entries just past the data descriptor.
-					return compressedDataStart + compressedSize + 12;
+					// Verify the compressed size matches what we expect, in case the signature occurred in the
+					// data descriptor by chance.
+					if (compressedSize === d - compressedDataStart)
+					{
+						promises.push(ExtractCompressedData(dataView, compressedDataStart, compressedSize, uncompressedSize, compression, filename));
+
+						// Continue search for further file entries just past the data descriptor.
+						return compressedDataStart + compressedSize + 16;
+					}
+				}
+
+				// As we don't know if we'll ever find a data descriptor signature, also check if there is a valid
+				// compressed size field here matching how far through the compressed data we've come. As this field
+				// is at least 4 bytes in to the data descriptor (past the CRC-32 field), it means we did not already
+				// find the signature. Therefore this code path assumes there is no signature in the data descriptor.
+				// Also note this is not checked at the start, because it must come at least 4 bytes in.
+				if (d !== compressedDataStart)
+				{
+					const actualCompressedDataSizeHere = d - compressedDataStart - 4;
+					const readCompressedDataSize = dataView.getUint32(d, true);
+
+					// Found the correct compressed data size here.
+					if (actualCompressedDataSizeHere === readCompressedDataSize)
+					{
+						// Set the compressed size, and also read the uncompressed size only for diagnostic purposes.
+						compressedSize = actualCompressedDataSizeHere;
+						uncompressedSize = dataView.getUint32(d + 8, true);
+					
+						promises.push(ExtractCompressedData(dataView, compressedDataStart, compressedSize, uncompressedSize, compression, filename));
+
+						// Continue search for further file entries just past the data descriptor.
+						return compressedDataStart + compressedSize + 12;
+					}
 				}
 			}
 
