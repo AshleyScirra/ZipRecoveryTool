@@ -71,6 +71,27 @@ function AddLogMessage(msg)
 	logListElem.insertAdjacentHTML("beforeend", "<li>" + msg + "</li>");
 }
 
+// Smallest possible sizes by file extension to avoid false positive data descriptor matches
+// near beginning of compressed data. See: https://github.com/mathiasbynens/small
+const MIN_SIZE_BY_EXT = new Map([
+	[".jpg",		107],
+	[".jpeg",		107],
+	[".mp4",		1493],
+	[".png",		51],
+	[".webp",		26],
+	[".webm",		185]
+]);
+
+function GetSmallestSizeForFilename(filename)
+{
+	const i = filename.lastIndexOf(".");
+	if (i === -1)
+		return 0;
+
+	const ext = filename.substr(i).toLowerCase();
+	return MIN_SIZE_BY_EXT.get(ext) ?? 0;
+}
+
 /////////////////////////////////////////////////////
 // File recovery
 async function RecoverFile(file)
@@ -255,7 +276,11 @@ function TryRecoverFileEntry(dataView, i, promises)
 			// NOTE: in the Zip64 format the data descriptor uses 8 bytes for the sizes. This is not currently supported.
 			// It looks like some zip libraries still use 4 byte sizes for files under 4 GB even when Zip64 support
 			// is enabled, so only checking for the 4 byte sizes should work most of the time anyway.
-			for (let d = compressedDataStart; d < totalSize - 4; ++d)
+			// NOTE: also use minimum possible file sizes to avoid false positive results near the beginnings of files.
+			// We assume something ending .png is a valid PNG file and therefore must have a minimum size.
+			const minSize = GetSmallestSizeForFilename(filename);
+
+			for (let d = compressedDataStart + minSize; d < totalSize - 4; ++d)
 			{
 				// See if the data descriptor signature is here. This is optional and so may never appear.
 				const signature = dataView.getUint32(d, false);		// note read as big endian
@@ -282,7 +307,7 @@ function TryRecoverFileEntry(dataView, i, promises)
 				// is at least 4 bytes in to the data descriptor (past the CRC-32 field), it means we did not already
 				// find the signature. Therefore this code path assumes there is no signature in the data descriptor.
 				// Also note this is not checked at the start, because it must come at least 4 bytes in.
-				if (d !== compressedDataStart)
+				if (d >= compressedDataStart + minSize + 4)
 				{
 					const actualCompressedDataSizeHere = d - compressedDataStart - 4;
 					const readCompressedDataSize = dataView.getUint32(d, true);
