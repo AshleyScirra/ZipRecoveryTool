@@ -18,12 +18,15 @@ let folderHandle = null;
 // Stats
 let filesIdentified = 0;
 let filesExtracted = 0;
+let filesFinishedExtracting = 0;
 
 // HTML elements and event handlers
 const filePickerElem = document.getElementById("filepicker");
 const pickFolderButtonElem = document.getElementById("pickfolder");
 const startButtonElem = document.getElementById("start");
 const logListElem = document.getElementById("logList");
+const progressElem = document.getElementById("progress");
+progressElem.style.display = "none";
 
 // Enable start button when a file chosen
 filePickerElem.addEventListener("change", e =>
@@ -76,6 +79,9 @@ async function RecoverFile(file)
 	logListElem.innerHTML = "";
 	filesIdentified = 0;
 	filesExtracted = 0;
+	filesFinishedExtracting = 0;
+	progressElem.style.display = "";
+	progressElem.removeAttribute("value");		// show indeterminate progress until first update
 
 	// Array of extraction promises to await
 	const promises = [];
@@ -141,11 +147,15 @@ async function RecoverFile(file)
 	else
 	{
 		// Otherwise wait for all file extractions to complete, then log the finished message.
-		AddLogMessage(`Waiting for extraction of ${filesExtracted} files to finish...`);
+		AddLogMessage(`Finished scan. Waiting for extraction of ${filesExtracted} files to finish...`);
+
+		progressElem.setAttribute("max", filesExtracted);
 
 		await Promise.all(promises);
 
 		AddLogMessage(`Finished. Identified ${filesIdentified} files and extracted ${filesExtracted} files.`);
+
+		progressElem.style.display = "none";
 	}
 }
 
@@ -322,6 +332,10 @@ async function ExtractCompressedData(dataView, offset, size, expectedUncompresse
 
 	// Throttle extraction to avoid too much simultaneous work
 	await extractThrottle.Add(() => DoExtractCompressedData(dataView, offset, size, expectedUncompressedSize, compression, filename));
+
+	// Update progress
+	filesFinishedExtracting++;
+	progressElem.value = filesFinishedExtracting;
 }
 
 async function DoExtractCompressedData(dataView, offset, size, expectedUncompressedSize, compression, filename)
