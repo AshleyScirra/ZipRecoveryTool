@@ -384,8 +384,9 @@ async function DoExtractCompressedData(dataView, offset, size, expectedUncompres
 		const blob = await new Response(decompressionStream.readable).blob();
 
 		// Log a diagnostic if the decompressed size does not match what we found in the zip. This may not matter
-		// but it may be a sign of a problem that causes incorrect extraction.
-		if (blob.size !== expectedUncompressedSize)
+		// but it may be a sign of a problem that causes incorrect extraction. Ignore this if the uncompressed size
+		// is 0 as presumably the zip writer left it unset.
+		if (blob.size !== expectedUncompressedSize && expectedUncompressedSize !== 0)
 		{
 			AddLogMessage(`File '${filename}' expected uncompressed size ${expectedUncompressedSize} but got ${blob.size}. Presumably the uncompressed size specified in the zip file is incorrect.`);
 		}
